@@ -1,12 +1,17 @@
 /*
  * Interface between Engelbart keyset and USB
+ * Also supports a regular USB mouse so the buttons can be used with the keyset.
+ * The tricky part is passing mouse operations through so the mouse is still usable.
  *
  * Ken Shirriff, righto.com
  *
- * Note: to compile, set Tools->USB Type to Keyboard
+ * Note: to compile, set Tools->USB Type to Keyboard + Mouse + Joystick
+ * (Joystick is unused but there's no option for just Keyboard + Mouse.)
  */
 
 #include "USBHost_t36.h"
+
+#define DEBUG  // Log to Serial
 
 // DB-25 connector wiring to keyset
 // Colors are arbitrary, corresponding to my cable
@@ -57,16 +62,47 @@ bool keyHandled = false;           // Indicates that keypress has been handled
  * Left button: 1<<0, middle button 1<<2, right button 1<<1
  * See "Button Status" at https://wiki.osdev.org/USB_Human_Interface_Devices
  */
-#define LB 1  // Left mouse button, USB code
-#define MB 4  // Middle mouse button, USB code
-#define RB 2  // Right mouse button, USB code
+#define BUTTON_L 1  // Left mouse button, USB code
+#define BUTTON_M 4  // Middle mouse button, USB code
+#define BUTTON_R 2  // Right mouse button, USB code
+
+// Log a debug message to the Serial port
+void debugMsg(const char *msg) {
+#ifdef DEBUG
+  Serial.println(msg);
+#endif
+}
+
+// Sends a character using the USB Keyboard
+// This handles special characters and debug logging
+void send(char c) {
+#ifdef DEBUG
+  Serial.print("Sending: x");
+  Serial.print(c, HEX);
+  Serial.print(" ");
+  Serial.println(c);
+#endif
+  if (c == '\r') {  // return
+    Keyboard.press(KEY_ENTER);
+    Keyboard.release(KEY_ENTER);
+  } else if (c == '\t') {  // tab
+    Keyboard.press(KEY_TAB);
+    Keyboard.release(KEY_TAB);
+  } else if (c == '\x1b') {  // escape
+    Keyboard.press(KEY_ESC);
+    Keyboard.release(KEY_ESC);
+  } else {
+    Keyboard.print(c);
+  }
+}
 
 void loop() {
   myusb.Task();
 
-  int newButtonValue = buttonValue; // USB mouse value stays the same unless event received
+  int newButtonValue = buttonValue;  // USB mouse value stays the same unless event received
 
   if (mouse1.available()) {
+#ifdef DEBUG
     Serial.print("Mouse: buttons = ");
     Serial.print(mouse1.getButtons());
     Serial.print(",  mouseX = ");
@@ -78,7 +114,17 @@ void loop() {
     Serial.print(",  wheelH = ");
     Serial.print(mouse1.getWheelH());
     Serial.println();
+#endif
     newButtonValue = mouse1.getButtons();
+    // Don't pass mouse buttons through here because we need to merge them with the keyset
+    // This results in a 100ms delay before mouse buttons take effect, which is a bit annoying.
+    // Pass mouse movement and wheel through immediately
+    if (mouse1.getMouseX() != 0 || mouse1.getMouseY() != 0) {
+      Mouse.move(mouse1.getMouseX(), mouse1.getMouseY());
+    }
+    if (mouse1.getWheel()) {
+      Mouse.scroll(mouse1.getWheel(), mouse1.getWheelH());
+    }
     mouse1.mouseDataClear();
   }
 
@@ -88,61 +134,76 @@ void loop() {
     buttonValue = newButtonValue;
     keyStartMillis = millis();
     keyHandled = false;
+    if (buttonValue == 0) {
+      Mouse.set_buttons(0, 0, 0);  // Release button presses if we're sending any
+    }
     digitalWrite(LED, 0);
   } else if (millis() - keyStartMillis > 100 && !keyHandled) {
     if (keyValue == 0 && buttonValue == 0) return;  // Key up so ignore
     // Detected a key pattern for more than 100 ms
     keyHandled = true;
     digitalWrite(LED, 1);
-    Serial.print(digitalRead(K1), DEC);
-    Serial.print(digitalRead(K2), DEC);
-    Serial.print(digitalRead(K3), DEC);
-    Serial.print(digitalRead(K4), DEC);
-    Serial.println(digitalRead(K5), DEC);
-    Serial.print("keyset: ");
+#ifdef DEBUG
+    Serial.print("keyset buttons: ");
+    Serial.print(digitalRead(K1) ^ 1, DEC);
+    Serial.print(digitalRead(K2) ^ 1, DEC);
+    Serial.print(digitalRead(K3) ^ 1, DEC);
+    Serial.print(digitalRead(K4) ^ 1, DEC);
+    Serial.print(digitalRead(K5) ^ 1, DEC);
+    Serial.print(", keyset value: x");
     Serial.print(keyValue, HEX);
-    Serial.print(" mouse buttons:");
+    Serial.print(" mouse button value: ");
     Serial.println(buttonValue, DEC);
+#endif
     if (keyValue == 0) {
       // Special handling for mouse buttons without keyset.
-      if (buttonValue == MB) {  // Middle button
+      if (buttonValue == BUTTON_M) {  // Middle button
         // Should be <CD>, but pass mouse button through
-      } else if (buttonValue == LB) {  // Left button
-        // Should be <BC>, but pass mouse button through
-      } else if (buttonValue == RB) {  // Right button
+        debugMsg("Sending middle button");
+        Mouse.set_buttons(0, 1, 0);
+      } else if (buttonValue == BUTTON_L) {  // Left button
+                                             // Should be <BC>, but pass mouse button through
+        debugMsg("Sending left button");
+        Mouse.set_buttons(1, 0, 0);
+      } else if (buttonValue == BUTTON_R) {  // Right button
         // Should be <OK>, but pass mouse button through
-      } else if (buttonValue == (LB | MB)) {  // Left, middle buttons
-        Keyboard.print("<BW>");
-      } else if (buttonValue == (MB | RB)) {  // Middle, right buttons
+        debugMsg("Sending right button");
+        Mouse.set_buttons(0, 0, 1);
+      } else if (buttonValue == (BUTTON_L | BUTTON_M)) {  // Left, middle buttons
+        send('\b');                                       // Should be <BW> but send a backspace
+      } else if (buttonValue == (BUTTON_M | BUTTON_R)) {  // Middle, right buttons
+        debugMsg("Sending <RC>");
         Keyboard.print("<RC>");
-      } else if (buttonValue == (LB | RB)) {  // Left, right buttons
-        Keyboard.print("\x1b");       // escape character
-      } else if (buttonValue == (LB | MB | RB)) {  // All buttons
+      } else if (buttonValue == (BUTTON_L | BUTTON_R)) {  // Left, right buttons
+        send('\x1b');
+      } else if (buttonValue == (BUTTON_L | BUTTON_M | BUTTON_R)) {  // All buttons
+        debugMsg("Ignoring 3-button press");
         // No action
       }
     } else if (buttonValue == 0) {
-      Serial.println(keys0[keyValue]);
       // USB keyboard emulation info: https://www.pjrc.com/teensy/td_keyboard.html
-      Keyboard.print(keys0[keyValue]);
-    } else if (buttonValue == MB) {
-      Serial.println(keys1[keyValue]);
-      Keyboard.print(keys1[keyValue]);
-    } else if (buttonValue == LB) {
-      Serial.println(keys2[keyValue]);
-      Keyboard.print(keys2[keyValue]);
-    } else if (buttonValue == RB) {
+      send(keys0[keyValue]);
+    } else if (buttonValue == BUTTON_M) {
+      send(keys1[keyValue]);
+    } else if (buttonValue == BUTTON_L) {
+      send(keys2[keyValue]);
+    } else if (buttonValue == BUTTON_R) {
       // "Has no meaning with keyset input"
-    } else if (buttonValue == (LB | MB)) {
+      debugMsg("Ignoring right + keyset");
+    } else if (buttonValue == (BUTTON_L | BUTTON_M)) {
       // "Take each keyset code as a lowercase viewspec"
       // Ignore for now.
-    } else if (buttonValue == (MB | RB)) {
-      Keyboard.print(keys0[keyValue] & 0x1f);  // Convert to control character
-    } else if (buttonValue == (LB | RB)) {
+      debugMsg("Ignoring left/middle + keyset");
+    } else if (buttonValue == (BUTTON_M | BUTTON_R)) {
+      send(keys0[keyValue] & 0x1f);
+    } else if (buttonValue == (BUTTON_L | BUTTON_R)) {
       // "Search for marker named by keyset combination"
       // Ignore for now.
-    } else if (buttonValue == (LB | MB | RB)) {
+      debugMsg("Ignoring left/right + keyset");
+    } else if (buttonValue == (BUTTON_L | BUTTON_M | BUTTON_R)) {
       // "Take each keyset code as a capital viewspec."
       // Ignore for now.
+      debugMsg("Ignoring left/middle/right + keyset");
     }
   }
 }
