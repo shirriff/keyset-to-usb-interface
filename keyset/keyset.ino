@@ -17,6 +17,7 @@
 #define K4 4  // green, p13
 // ground = white, p18
 
+// Keyset characters for no mouse button, middle mouse button, and left mouse button
 const char *keys0 = " abcdefghijklmnopqrstuvwxyz,.;? ";
 const char *keys1 = " ABCDEFGHIJKLMNOPQRSTUVWXYZ<>:\\\t";
 const char *keys2 = " !\"#$%&'()@+-*/^0123456789=[]\x1b\r";
@@ -27,7 +28,6 @@ USBHost myusb;
 
 USBHIDParser hid1(myusb);
 MouseController mouse1(myusb);
-
 
 void setup() {
   pinMode(K1, INPUT_PULLUP);
@@ -49,31 +49,22 @@ void setup() {
 // When the key is released, keyValue is set to 0.
 // This algorithm handles press-and-release as well as rollover.
 int keyValue = 0;                  // Current keypress value, or 0 if no press
-int buttonValue = 0;               // Current mouse button value
+int buttonValue = 0;               // Current USB mouse button value
 unsigned long keyStartMillis = 0;  // Time when keypress started
 bool keyHandled = false;           // Indicates that keypress has been handled
 
 /*
-  * Left button: 1<<0, middle button 1<<2, right button 1<<1
-  * See "Button Status" at https://wiki.osdev.org/USB_Human_Interface_Devices
-  * Keyset mapping, based on columns on the reference card, is:
-  * ooo = 0
-  * oXo = 1 (i.e. middle button, selects capitals)
-  * Xoo = 2 (i.e. left button, selects special characters)
-  * ooX = 3 (i.e. right button, has no meaning with keyset input)
-  * XXo = 4, specifies a lowercase viewspec; we'll ignore this
-  * oXX = 5, specifies a control character
-  * XoX = 6, specifies a marker; we'll ignore this
-  * XXX = 7, specifies a capital viewspec; we'll ignore this
-  *
-  * I'll use a table lookup to convert from USB mouse button code to keyset value.
-  */
-int usbButtonsToKeyset[8] = { 0, 2, 3, 6, 1, 4, 5, 7 };
-
-int usbMouseButtons = 0;  // Current mouse button value
+ * Left button: 1<<0, middle button 1<<2, right button 1<<1
+ * See "Button Status" at https://wiki.osdev.org/USB_Human_Interface_Devices
+ */
+#define LB 1  // Left mouse button, USB code
+#define MB 4  // Middle mouse button, USB code
+#define RB 2  // Right mouse button, USB code
 
 void loop() {
   myusb.Task();
+
+  int newButtonValue = buttonValue; // USB mouse value stays the same unless event received
 
   if (mouse1.available()) {
     Serial.print("Mouse: buttons = ");
@@ -87,12 +78,11 @@ void loop() {
     Serial.print(",  wheelH = ");
     Serial.print(mouse1.getWheelH());
     Serial.println();
-    usbMouseButtons = mouse1.getButtons();
+    newButtonValue = mouse1.getButtons();
     mouse1.mouseDataClear();
   }
 
   int newKeyValue = (digitalRead(K1) * 16 | digitalRead(K2) * 8 | digitalRead(K3) * 4 | digitalRead(K4) * 2 | digitalRead(K5)) ^ 0x1f;
-  int newButtonValue = usbButtonsToKeyset[usbMouseButtons & 7];
   if (newKeyValue != keyValue || newButtonValue != buttonValue) {
     keyValue = newKeyValue;
     buttonValue = newButtonValue;
@@ -115,42 +105,42 @@ void loop() {
     Serial.println(buttonValue, DEC);
     if (keyValue == 0) {
       // Special handling for mouse buttons without keyset.
-      if (buttonValue == 1) {  // Middle button
+      if (buttonValue == MB) {  // Middle button
         // Should be <CD>, but pass mouse button through
-      } else if (buttonValue == 2) {  // Left button
+      } else if (buttonValue == LB) {  // Left button
         // Should be <BC>, but pass mouse button through
-      } else if (buttonValue == 3) {  // Right button
+      } else if (buttonValue == RB) {  // Right button
         // Should be <OK>, but pass mouse button through
-      } else if (buttonValue == 4) {  // Left, middle buttons
+      } else if (buttonValue == (LB | MB)) {  // Left, middle buttons
         Keyboard.print("<BW>");
-      } else if (buttonValue == 5) {  // Middle, right buttons
+      } else if (buttonValue == (MB | RB)) {  // Middle, right buttons
         Keyboard.print("<RC>");
-      } else if (buttonValue == 6) {  // Left, right buttons
-        Keyboard.print("\x1b"); // escape character
-      } else if (buttonValue == 7) {  // All buttons
+      } else if (buttonValue == (LB | RB)) {  // Left, right buttons
+        Keyboard.print("\x1b");       // escape character
+      } else if (buttonValue == (LB | MB | RB)) {  // All buttons
         // No action
       }
     } else if (buttonValue == 0) {
       Serial.println(keys0[keyValue]);
       // USB keyboard emulation info: https://www.pjrc.com/teensy/td_keyboard.html
       Keyboard.print(keys0[keyValue]);
-    } else if (buttonValue == 1) {
+    } else if (buttonValue == MB) {
       Serial.println(keys1[keyValue]);
       Keyboard.print(keys1[keyValue]);
-    } else if (buttonValue == 2) {
+    } else if (buttonValue == LB) {
       Serial.println(keys2[keyValue]);
       Keyboard.print(keys2[keyValue]);
-    } else if (buttonValue == 3) {
+    } else if (buttonValue == RB) {
       // "Has no meaning with keyset input"
-    } else if (buttonValue == 4) {
+    } else if (buttonValue == (LB | MB)) {
       // "Take each keyset code as a lowercase viewspec"
       // Ignore for now.
-    } else if (buttonValue == 5) {
+    } else if (buttonValue == (MB | RB)) {
       Keyboard.print(keys0[keyValue] & 0x1f);  // Convert to control character
-    } else if (buttonValue == 6) {
+    } else if (buttonValue == (LB | RB)) {
       // "Search for marker named by keyset combination"
       // Ignore for now.
-    } else if (buttonValue == 7) {
+    } else if (buttonValue == (LB | MB | RB)) {
       // "Take each keyset code as a capital viewspec."
       // Ignore for now.
     }
