@@ -11,6 +11,12 @@ Now I can type with the keyset, using the mouse buttons to select upper case and
 
 [Link to video](https://youtu.be/DpshKBKt_os?si=hEbSdSmSjGin9laS)
 
+## Using the keyset
+
+The following sheet shows the characters corresponding to each keyset and mouse button combination.
+
+<img src="https://github.com/shirriff/keyset-to-usb-interface/blob/main/keyset-sheet-front.jpg" height="500" />
+
 ## The interface
 
 I used a [Teensy 3.6](https://www.pjrc.com/teensy/index.html) board, which is similar to an Arduino but can act both as a USB host and a USB device. 
