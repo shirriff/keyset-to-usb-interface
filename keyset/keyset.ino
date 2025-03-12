@@ -11,7 +11,7 @@
 
 #include "USBHost_t36.h"
 
-#define DEBUG  // Log to Serial
+#undef DEBUG  // Log to Serial
 
 // DB-25 connector wiring to keyset
 // Colors are arbitrary, corresponding to my cable
@@ -23,9 +23,9 @@
 // ground = white, p18
 
 // Keyset characters for no mouse button, middle mouse button, and left mouse button
-const char *keys0 = " abcdefghijklmnopqrstuvwxyz,.;? ";
-const char *keys1 = " ABCDEFGHIJKLMNOPQRSTUVWXYZ<>:\\\t";
-const char *keys2 = " !\"#$%&'()@+-*/^0123456789=[]\x1b\r";
+const char keys0[33] = " abcdefghijklmnopqrstuvwxyz,.;? ";
+const char keys1[33] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ<>:\\\t";
+const char keys2[33] = " !\"#$%&'()@+-*/^0123456789=[]\x08\x1b\r";
 
 #define LED 13  // Light LED on each character
 
@@ -76,22 +76,46 @@ void debugMsg(const char *msg) {
 // Sends a character using the USB Keyboard
 // This handles special characters and debug logging
 void send(char c) {
-#ifdef DEBUG
-  Serial.print("Sending: x");
-  Serial.print(c, HEX);
-  Serial.print(" ");
-  Serial.println(c);
-#endif
   if (c == '\r') {  // return
+#ifdef DEBUG
+    Serial.println("Sending KEY_ENTER");
+#endif
     Keyboard.press(KEY_ENTER);
     Keyboard.release(KEY_ENTER);
   } else if (c == '\t') {  // tab
+#ifdef DEBUG
+    Serial.println("Sending KEY_TAB");
+#endif
     Keyboard.press(KEY_TAB);
     Keyboard.release(KEY_TAB);
   } else if (c == '\x1b') {  // escape
+#ifdef DEBUG
+    Serial.println("Sending KEY_ESC");
+#endif
     Keyboard.press(KEY_ESC);
     Keyboard.release(KEY_ESC);
+  } else if (c == '\b') {  // backspace
+#ifdef DEBUG
+    Serial.println("Sending KEY_BACKSPACE");
+#endif
+    Keyboard.press(KEY_BACKSPACE);
+    Keyboard.release(KEY_BACKSPACE);
+  } else if (c <= 0x1a) {  // Control character
+#ifdef DEBUG
+    Serial.print("Sending control-");
+    Serial.println((char)(c + 64));
+#endif
+    Keyboard.press(MODIFIERKEY_CTRL);
+    Keyboard.press(c - 1 + KEY_A);  // Will work for CTRL-alpha but probably not others
+    Keyboard.release(c - 1 + KEY_A);
+    Keyboard.release(MODIFIERKEY_CTRL);
   } else {
+#ifdef DEBUG
+    Serial.print("Sending: x");
+    Serial.print(c, HEX);
+    Serial.print(" ");
+    Serial.println(c);
+#endif
     Keyboard.print(c);
   }
 }
@@ -102,7 +126,7 @@ void loop() {
   int newButtonValue = buttonValue;  // USB mouse value stays the same unless event received
 
   if (mouse1.available()) {
-#ifdef DEBUG
+#ifdef DEBUG_MOUSE
     Serial.print("Mouse: buttons = ");
     Serial.print(mouse1.getButtons());
     Serial.print(",  mouseX = ");
