@@ -29,3 +29,7 @@ button presses over the USB interface, if the button presses aren't in combinati
 The keyset has its five buttons wired to a DB-25 connector so it is straightforward to connect to five inputs on the Teensy.
 One complication is that the keyset apparently has a 1.5 KΩ between the leftmost button and ground, maybe to indicate that the device is
 plugged in. To counteract this and allow the Teensy to read the pin, I connected a 1 KΩ pullup resistor.
+
+## Blog post
+
+For more information on the keyset, see my blog post [A USB interface to the "Mother of All Demos" keyset](https://www.righto.com/2025/03/mother-of-all-demos-usb-keyset-interface.html)
