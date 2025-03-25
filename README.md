@@ -33,3 +33,7 @@ plugged in. To counteract this and allow the Teensy to read the pin, I connected
 ## Blog post
 
 For more information on the keyset, see my blog post [A USB interface to the "Mother of All Demos" keyset](https://www.righto.com/2025/03/mother-of-all-demos-usb-keyset-interface.html)
+
+## 3D replica
+
+Eric Schlaepfer has plans for an exact replica [here](https://github.com/schlae/engelbart-keyset).
