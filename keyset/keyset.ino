@@ -15,7 +15,7 @@
 
 // DB-25 connector wiring to keyset
 // Colors are arbitrary, corresponding to my cable
-#define K5 0  // black, p14
+#define K5 0  // black, p15
 #define K2 1  // gray, p10
 #define K1 2  // purple, p11
 #define K3 3  // blue, p12
