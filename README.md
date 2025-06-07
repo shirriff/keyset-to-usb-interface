@@ -26,9 +26,9 @@ The tricky part is that the keyset is designed to uses three mouse buttons to se
 Thus, the Teensy also reads a USB mouse to get the button states. To make the mouse work as a mouse, the Teensy re-sends mouse movements and
 button presses over the USB interface, if the button presses aren't in combination with the keyset.
 
-The keyset has its five buttons wired to a DB-25 connector so it is straightforward to connect to five inputs on the Teensy.
-One complication is that the keyset apparently has a 1.5 KΩ between the leftmost button and ground, maybe to indicate that the device is
-plugged in. To counteract this and allow the Teensy to read the pin, I connected a 1 KΩ pullup resistor.
+The keyset has its five buttons wired to a DB-25 connector so it is straightforward to connect to five inputs on the Teensy. The schematic below shows the internal wiring of the keyset.
+
+<img src="https://github.com/user-attachments/assets/0333f04d-0dcd-401e-9909-a48e5c225928" height="350" />
 
 ## Blog post
 
