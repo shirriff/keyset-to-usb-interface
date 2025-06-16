@@ -125,8 +125,8 @@ const uint16_t keys2[32] = {
   KEY_EQUAL,          // 26
   KEY_LEFT_BRACE,     // 27, "["
   KEY_RIGHT_BRACE,    // 28, "]"
-  KEY_COMMA,          // 29
-  KEY_LEFT | SHIFT,   // 30, left arrow
+  KEY_LEFT | SHIFT,   // 29, left arrow
+  KEY_ESC,            // 30
   KEY_ENTER,          // 31
 };
 
