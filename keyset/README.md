@@ -14,6 +14,32 @@ The third table (keys2) defines the keycodes with the left mouse button: special
 Note that the USB keycodes have nothing to do with ASCII. They map to physical keys, so, for example,
 an exclamation point is the "1" key and the SHIFT modifier.
 
+### Unusual key mappings
+
+Using the keyset with the middle and right mouse buttons generates a control character. I'm simply sending the
+keycode along with the CTRL key modifier. This works with letters, but doesn't make much sense for control-comma, for instance.
+
+Using the keyset with the left and middle buttons generates a "lowercase viewspec" according to the keyset sheet.
+I'm sending the original character
+with the GUI modifier, which corresponds to the Command (⌘) key on a MacBook. I'm not sure what happens if you
+send this to a PC.
+
+Using the keyset with all three buttons generates a "capital viewspec". I'm sending the original character with
+the SHIFT modifier and the GUI modifier.
+
+Using the keyset with the right button has no defined meaning, so I ignore this.
+Using the keyset with the left and right buttons is defined as "search for marker". I'm ignoring this.
+
+### Unusual button presses
+
+The keyset sheet defines special actions for button presses without the keyset. I'm sending single button
+presses unchanged, because otherwise the mouse is unusable with normal applications.
+Pressing left and middle buttons is supposed to send a <BW>, but I'm sending control-W.
+Pressing middle and right buttons is supposed to send a <RC>, but I'm sending control-B.
+Pressing left and right buttons is supposed to send <ESC>, so I'm sending Escape.
+There is no action specified for all three buttons at once, so I don't send anything.
+
+
 ## The state machine for debouncing
 
 Debouncing the keyset is trickier than I expected. Moreover, the keyset is used in combination with mouse buttons, but the keys and buttons are unlikely to be
